@@ -5,24 +5,25 @@ import android.content.Context
 import android.location.Geocoder
 import android.location.Location
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.tasks.Task
+import com.google.android.gms.maps.model.LatLng
 import java.util.*
 
 object LocationHelper {
     @SuppressLint("MissingPermission")
-    fun getCurrentLocation(context: Context, onLocationFound: (String) -> Unit) {
+    fun getCurrentLocation(context: Context, onLocationFound: (String, LatLng?) -> Unit) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location: Location? ->
                 if (location != null) {
+                    val latLng = LatLng(location.latitude, location.longitude)
                     val address = getAddressFromLocation(context, location.latitude, location.longitude)
-                    onLocationFound(address)
+                    onLocationFound(address, latLng)
                 } else {
-                    onLocationFound("Unknown Location")
+                    onLocationFound("Unknown Location", null)
                 }
             }
             .addOnFailureListener {
-                onLocationFound("Location Error")
+                onLocationFound("Location Error", null)
             }
     }
 

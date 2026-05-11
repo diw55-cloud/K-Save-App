@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.denoh.k_save.R
 import com.denoh.k_save.network.LocationHelper
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -55,7 +56,7 @@ fun HomeScreen(
     var currentLocationName by remember { mutableStateOf("Locating...") }
     val nairobi = LatLng(-1.286389, 36.817223)
     var showSheet by remember { mutableStateOf(false) }
-    
+
     var isOnline by remember { mutableStateOf(checkInternet(context)) }
 
     val cameraPositionState = rememberCameraPositionState {
@@ -77,9 +78,13 @@ fun HomeScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            LocationHelper.getCurrentLocation(context) { address ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            LocationHelper.getCurrentLocation(context) { address, latLng ->
                 currentLocationName = address
+                latLng?.let {
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(it, 15f)
+                }
             }
         }
     }
@@ -95,14 +100,14 @@ fun HomeScreen(
     }
 
     val destinations = listOf(
-        "Westlands", "CBD", "Kilimani", "Karen", "Lavington", 
+        "Westlands", "CBD", "Kilimani", "Karen", "Lavington",
         "Kileleshwa", "Langata", "South C", "South B", "Ngong",
         "Rongai", "Kasarani", "Donholm", "Eastleigh", "Parklands",
         "Gigiri", "Runda", "Muthaiga", "Upper Hill", "Thika Town",
         "Juja", "Ruiru", "Githurai 44", "Githurai 45", "Kikuyu Town",
         "Limuru Town", "Banana", "Ruaka Town", "Muchatha Town",
         "Wangige", "Lower Kabete", "Rosslyn", "Garden Estate",
-        "Two Rivers Mall", "Village Market", "Garden City Mall", "Sarit Centre", "Junction Mall",
+        "Two Rivers Mall", "Village Market", "Garden City Mall", "Sarit Centre", "Westgate Mall", "Junction Mall",
         "The Hub Karen", "Nairobi Hospital", "Aga Khan Hospital", "Kenyatta Hospital",
         "JKIA Airport", "Wilson Airport", "SGR Terminus Syokimau", "Mombasa"
     )
@@ -110,6 +115,7 @@ fun HomeScreen(
     val services = listOf(
         ServiceItem("Ride", "https://mobile-content.uber.com/launch-experience/ride.png", Color.White),
         ServiceItem("Package", "https://mobile-content.uber.com/launch-experience/package.png", Color.White),
+        ServiceItem("Tow", "https://cdn-icons-png.flaticon.com/512/2830/2830305.png", Color.White),
         ServiceItem("Rentals", "https://mobile-content.uber.com/launch-experience/rentals.png", Color.White),
         ServiceItem("Airport", "https://mobile-content.uber.com/launch-experience/reserve.png", Color.White)
     )
@@ -129,21 +135,23 @@ fun HomeScreen(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { onSettingsClick() },
                                 shape = CircleShape,
                                 color = Color.White.copy(alpha = 0.2f)
                             ) {
-                                Icon(
-                                    Icons.Default.Person,
+                                AsyncImage(
+                                    model = R.drawable.i,
                                     contentDescription = "Profile",
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(8.dp)
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text("Hello, Denis", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Text("Premium Member", color = Color.LightGray, fontSize = 12.sp)
+                                Text("Welcome Back!", color = Color.LightGray, fontSize = 12.sp)
                             }
                         }
                     },
@@ -168,14 +176,14 @@ fun HomeScreen(
                 Box(modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)) {
-                    
+
                     GoogleMap(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)),
                         cameraPositionState = cameraPositionState,
                         uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = true),
-                        properties = MapProperties(isMyLocationEnabled = true)
+                        properties = MapProperties(isMyLocationEnabled = isOnline)
                     ) {
                         nearbyVehicles.forEach { (pos, label) ->
                             Marker(
@@ -198,6 +206,7 @@ fun HomeScreen(
                             color = Color.Black.copy(0.7f),
                             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
                         ) {
+
                             Column(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.Center,
@@ -226,7 +235,7 @@ fun HomeScreen(
                         Modifier.padding(20.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("📍", fontSize = 24.sp)
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(
@@ -278,7 +287,7 @@ fun HomeScreen(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text("Airport Express ✈️", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("Planes departing JKIA soon", color = Color.LightGray, fontSize = 12.sp)
+                            Text("Get Your Plane Ticket from Where You Are ", color = Color.LightGray, fontSize = 12.sp)
                             Spacer(Modifier.height(12.dp))
                             Button(
                                 onClick = { onServiceSelected("Airport") },
@@ -296,7 +305,7 @@ fun HomeScreen(
                         )
                     }
                 }
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -353,7 +362,7 @@ fun HomeScreen(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { 
+                                        .clickable {
                                             showSheet = false
                                             onLocationSelected(place)
                                         },

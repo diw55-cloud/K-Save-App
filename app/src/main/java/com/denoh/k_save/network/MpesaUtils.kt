@@ -13,6 +13,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 object MpesaUtils {
     private const val BASE_URL = "https://sandbox.safaricom.co.ke/"
@@ -25,8 +26,12 @@ object MpesaUtils {
     private val api: MpesaApi by lazy {
         val logging = HttpLoggingInterceptor()
         logging.setLevel(HttpLoggingInterceptor.Level.BODY)
+        
         val client = OkHttpClient.Builder()
             .addInterceptor(logging)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .build()
 
         Retrofit.Builder()
@@ -43,6 +48,8 @@ object MpesaUtils {
             formatted = "254" + formatted.substring(1)
         } else if (formatted.startsWith("7") || formatted.startsWith("1")) {
             formatted = "254" + formatted
+        } else if (formatted.startsWith("2540")) {
+            formatted = "254" + formatted.substring(4)
         }
         return formatted
     }
@@ -51,26 +58,39 @@ object MpesaUtils {
         val keys = "$CONSUMER_KEY:$CONSUMER_SECRET"
         val auth = "Basic " + Base64.encodeToString(keys.toByteArray(), Base64.NO_WRAP)
 
-        api.getAccessToken(auth).enqueue(object : Callback<AccessToken> {
+        // Fixed: Explicitly passing Content-Type which is often required for the generate token endpoint
+        api.getAccessToken(auth, "application/json").enqueue(object : Callback<AccessToken> {
             override fun onResponse(call: Call<AccessToken>, response: Response<AccessToken>) {
                 if (response.isSuccessful) {
-                    onSuccess(response.body()?.accessToken ?: "")
+                    val token = response.body()?.accessToken
+                    if (!token.isNullOrEmpty()) {
+                        onSuccess(token)
+                    } else {
+                        onFailure("Access token is null or empty")
+                    }
                 } else {
-                    onFailure("Failed to get token: ${response.code()}")
+                    val errorMsg = response.errorBody()?.string() ?: "Unknown error"
+                    onFailure("Auth Failed: ${response.code()} - $errorMsg")
                 }
             }
 
             override fun onFailure(call: Call<AccessToken>, t: Throwable) {
-                onFailure("Network Error: ${t.message}. Ensure internet is connected to resolve Safaricom host.")
+                onFailure("Network Error: ${t.message}. Check internet connection.")
             }
         })
     }
 
     fun performSTKPush(phoneNumber: String, amount: Int, onResult: (String) -> Unit) {
         val cleanPhone = formatPhoneNumber(phoneNumber)
+        
+        if (cleanPhone.length != 12 || !cleanPhone.startsWith("254")) {
+            onResult("Invalid Phone Number. Use format 07... or 2547...")
+            return
+        }
+
         getAccessToken(
             onSuccess = { token ->
-                val timestamp = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+                val timestamp = SimpleDateFormat("yyyyMMddHHmmss", Locale.US).format(Date())
                 val password = Base64.encodeToString(
                     (BUSINESS_SHORT_CODE + PASSKEY + timestamp).toByteArray(),
                     Base64.NO_WRAP
@@ -86,14 +106,19 @@ object MpesaUtils {
                     partyB = BUSINESS_SHORT_CODE,
                     phoneNumber = cleanPhone,
                     callBackURL = CALLBACK_URL,
-                    accountReference = "KSave Ride",
-                    transactionDesc = "Payment to K-Save"
+                    accountReference = "KSave",
+                    transactionDesc = "Payment"
                 )
 
                 api.sendSTKPush("Bearer $token", request).enqueue(object : Callback<STKPushResponse> {
                     override fun onResponse(call: Call<STKPushResponse>, response: Response<STKPushResponse>) {
                         if (response.isSuccessful) {
-                            onResult("Success: ${response.body()?.customerMessage}")
+                            val body = response.body()
+                            if (body?.responseCode == "0") {
+                                onResult("Success: ${body.customerMessage}")
+                            } else {
+                                onResult("Error: ${body?.customerMessage ?: "Unknown response code"}")
+                            }
                         } else {
                             val errorBody = response.errorBody()?.string() ?: "Unknown Error"
                             onResult("STK Push Failed: $errorBody")

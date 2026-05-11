@@ -175,7 +175,7 @@ fun BookingScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Pay Ksh $fare to K-Save", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Pay Ksh $fare", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

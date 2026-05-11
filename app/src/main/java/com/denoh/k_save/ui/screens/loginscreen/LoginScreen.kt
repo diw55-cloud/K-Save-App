@@ -13,14 +13,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.denoh.k_save.network.SessionManager
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -29,26 +35,49 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isAuthenticating by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val scope = rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0D47A1), Color(0xFF1976D2), Color(0xFF000000))
-                )
+    val nairobi = LatLng(-1.286389, 36.817223)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(nairobi, 12f)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Bolt-style background map
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = false,
+                compassEnabled = false,
+                mapToolbarEnabled = false
+            ),
+            properties = MapProperties(
+                mapType = MapType.NORMAL
             )
-    ) {
-        // Uber-style background image
-        AsyncImage(
-            model = "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1613521255/assets/32/38508e-04f0-482f-87d8-f99a0715392e/original/Login_Desktop.jpg",
-            contentDescription = null,
+        )
+
+        // Dark overlay for map
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(400.dp)
-                .align(Alignment.TopCenter),
-            contentScale = ContentScale.Crop,
-            alpha = 0.5f
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+        )
+
+        // Gradient overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f), Color.Black)
+                    )
+                )
         )
 
         Column(
@@ -56,83 +85,97 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Spacer(modifier = Modifier.height(100.dp))
-
             Text(
-                text = "Welcome Back",
-                fontSize = 32.sp,
+                text = "K-SAVE",
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 8.sp
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            Text(
+                text = "Premium Mobility",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4FF),
                 fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = "Sign in to continue your journey",
-                fontSize = 16.sp,
-                color = Color.LightGray,
-                modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+                letterSpacing = 4.sp
             )
 
-            // Content Card for visibility
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email Address") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF1976D2),
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
+            Spacer(modifier = Modifier.height(48.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email or Phone") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color.White) },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
+            )
 
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF1976D2),
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White) },
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onLoginSuccess,
+                onClick = {
+                    if (email.isNotEmpty() && password.isNotEmpty()) {
+                        isAuthenticating = true
+                        scope.launch {
+                            delay(2000) // Simulate real-time auth
+                            sessionManager.saveLoginState(true)
+                            isAuthenticating = false
+                            onLoginSuccess()
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(12.dp),
+                enabled = !isAuthenticating,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00D4FF))
             ) {
-                Text(
-                    "LOGIN",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+                if (isAuthenticating) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                } else {
+                    Text(
+                        "LOG IN",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
             }
 
             TextButton(
@@ -140,17 +183,13 @@ fun LoginScreen(
                 modifier = Modifier.padding(top = 16.dp)
             ) {
                 Text(
-                    "Don't have an account? Sign Up",
+                    "New to K-Save? Create Account",
                     color = Color.White,
                     fontWeight = FontWeight.Medium
                 )
             }
+            
+            Spacer(Modifier.height(24.dp))
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    LoginScreen()
 }

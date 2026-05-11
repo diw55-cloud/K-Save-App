@@ -1,15 +1,20 @@
 package com.denoh.k_save.navigation
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.denoh.k_save.network.SessionManager
 import com.denoh.k_save.screens.AppFlowScreen
 import com.denoh.k_save.screens.DashboardScreen
+import com.denoh.k_save.screens.DiagnosticScreen
 import com.denoh.k_save.screens.HomeScreen
+import com.denoh.k_save.screens.SavingsScreen
+import com.denoh.k_save.screens.SettingsScreen
 import com.denoh.k_save.screens.SplashScreen
 import com.denoh.k_save.screens.TripScreen
 import com.denoh.k_save.ui.screens.loginscreen.LoginScreen
@@ -17,17 +22,21 @@ import com.denoh.k_save.ui.screens.registerscreen.RegisterScreen
 
 @Composable
 fun AppNavHost(
-    navController: NavHostController = rememberNavController(),
-    startDestination: String = ROUTE_SPLASH
+    navController: NavHostController = rememberNavController()
 ) {
-    // State to track trip details for refund purposes
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    
+    // Determine start destination based on login state
+    val startDest = if (sessionManager.isLoggedIn()) ROUTE_HOME else ROUTE_SPLASH
+
     var activeTripDestination by remember { mutableStateOf("") }
     var activeTripFare by remember { mutableStateOf(0) }
     var userPhone by remember { mutableStateOf("254") }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDest
     ) {
         composable(ROUTE_SPLASH) {
             SplashScreen(onFinish = {
@@ -75,8 +84,23 @@ fun AppNavHost(
                 },
                 onServiceSelected = { service ->
                     navController.navigate("$ROUTE_DASHBOARD?category=$service")
+                },
+                onSettingsClick = {
+                    navController.navigate(ROUTE_SETTINGS)
+                },
+                onDiagnosticClick = {
+                    navController.navigate(ROUTE_DIAGNOSTIC)
                 }
             )
+        }
+        composable(ROUTE_SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(ROUTE_DIAGNOSTIC) {
+            DiagnosticScreen(onBack = { navController.popBackStack() })
+        }
+        composable(ROUTE_SAVINGS) {
+            SavingsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = "$ROUTE_DASHBOARD?category={category}&destination={destination}",
@@ -98,7 +122,14 @@ fun AppNavHost(
             DashboardScreen(
                 destination = destination,
                 initialCategory = category,
-                goHome = { navController.navigate(ROUTE_HOME) },
+                goHome = { 
+                    navController.navigate(ROUTE_HOME) {
+                        popUpTo(ROUTE_HOME) { inclusive = true }
+                    }
+                },
+                goSavings = {
+                    navController.navigate(ROUTE_SAVINGS)
+                },
                 onTripConfirmed = { fare, phone ->
                     activeTripFare = fare
                     userPhone = phone

@@ -11,7 +11,10 @@ import retrofit2.http.POST
 
 interface MpesaApi {
     @GET("oauth/v1/generate?grant_type=client_credentials")
-    fun getAccessToken(@Header("Authorization") auth: String): Call<AccessToken>
+    fun getAccessToken(
+        @Header("Authorization") auth: String,
+        @Header("Content-Type") contentType: String = "application/json"
+    ): Call<AccessToken>
 
     @POST("mpesa/stkpush/v1/processrequest")
     fun sendSTKPush(

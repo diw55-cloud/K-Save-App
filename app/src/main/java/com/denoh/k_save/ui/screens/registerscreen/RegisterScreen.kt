@@ -17,14 +17,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.denoh.k_save.network.SessionManager
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
@@ -35,26 +40,39 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isRegistering by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val scope = rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF6200EE), Color(0xFF3700B3), Color(0xFF000000))
-                )
-            )
-    ) {
-        // Uber-style background image at the top
-        AsyncImage(
-            model = "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_537/v1613521281/assets/d1/8197aa-a82a-4c2b-8a9d-9f20e9805d76/original/Registration_Desktop.jpg",
-            contentDescription = null,
+    val nairobi = LatLng(-1.286389, 36.817223)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(nairobi, 12f)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Bolt-style background map
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = false,
+                compassEnabled = false
+            ),
+            properties = MapProperties(mapType = MapType.NORMAL)
+        )
+
+        // Dark gradient overlay
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(320.dp)
-                .align(Alignment.TopCenter),
-            contentScale = ContentScale.Crop,
-            alpha = 0.5f
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Black.copy(alpha = 0.8f), Color.Black)
+                    )
+                )
         )
 
         Column(
@@ -63,122 +81,127 @@ fun RegisterScreen(
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Spacer(modifier = Modifier.height(140.dp))
-
             Text(
-                text = "Create Account",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                text = "Join K-SAVE",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 4.sp
             )
-            Text(
-                text = "Join K-Save and start your journey",
-                fontSize = 16.sp,
-                color = Color.LightGray,
-                modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            OutlinedTextField(
+                value = fullName,
+                onValueChange = { fullName = it },
+                label = { Text("Full Name") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White) },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
             )
 
-            // Content Card for better visibility
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        label = { Text("Full Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF6200EE),
-                            unfocusedBorderColor = Color.Gray,
-                            cursorColor = Color.Black
-                        )
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email Address") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color.White) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
+            )
 
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email Address") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF6200EE),
-                            unfocusedBorderColor = Color.Gray,
-                            cursorColor = Color.Black
-                        )
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                label = { Text("Phone Number") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
+            )
 
-                    OutlinedTextField(
-                        value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
-                        label = { Text("Phone Number") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF6200EE),
-                            unfocusedBorderColor = Color.Gray,
-                            cursorColor = Color.Black
-                        )
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedBorderColor = Color(0xFF6200EE),
-                            unfocusedBorderColor = Color.Gray,
-                            cursorColor = Color.Black
-                        )
-                    )
-                }
-            }
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White) },
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF00D4FF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF00D4FF),
+                    unfocusedLabelColor = Color.Gray
+                )
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onRegisterSuccess,
+                onClick = {
+                    if (fullName.isNotEmpty() && email.isNotEmpty() && phoneNumber.isNotEmpty() && password.isNotEmpty()) {
+                        isRegistering = true
+                        scope.launch {
+                            delay(2000)
+                            sessionManager.saveLoginState(true)
+                            isRegistering = false
+                            onRegisterSuccess()
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(12.dp),
+                enabled = !isRegistering,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
             ) {
-                Text(
-                    "REGISTER",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                if (isRegistering) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                } else {
+                    Text(
+                        "CREATE ACCOUNT",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
 
             TextButton(
@@ -191,6 +214,8 @@ fun RegisterScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

@@ -39,8 +39,9 @@ fun DashboardScreen(
     destination: String = "",
     initialCategory: String? = null,
     goHome: () -> Unit = {},
+    goSavings: () -> Unit = {},
     onTripConfirmed: (Int, String) -> Unit = { _, _ -> },
-    savings: Int = 0,
+    savings: Int = 1250,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -64,8 +65,8 @@ fun DashboardScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = { ProfessionalTopBar(savings) },
-        bottomBar = { ProfessionalBottomBar(goHome, { currentScreen = "main" }) }
+        topBar = { ProfessionalTopBar(savings, goSavings) },
+        bottomBar = { ProfessionalBottomBar(goHome, { currentScreen = "main" }, goSavings) }
     ) { padding ->
 
         Box(
@@ -149,12 +150,13 @@ fun DashboardScreen(
 @Composable
 fun CategoryCard(title: String, onClick: () -> Unit) {
     val imageUrl = when(title.lowercase()) {
-        "cars" -> "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_150,h_150/v1649231046/assets/84/ad05b2-3e28-4442-990d-2a3b043324c4/original/Uber_Auto_312x312.png"
+        "cars", "ride" -> "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_150,h_150/v1649231046/assets/84/ad05b2-3e28-4442-990d-2a3b043324c4/original/Uber_Auto_312x312.png"
         "bikes" -> "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_150,h_150/v1648135216/assets/c0/9b973a-fca6-4786-82ee-01774319fb0a/original/Uber_Moto_Kenya_312x312.png"
         "matatus" -> "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_150,h_150/v1542350172/assets/80/e78345-d85c-4573-a5bc-4389659b829d/original/Uber_X_312x312.png"
         "rentals" -> "https://mobile-content.uber.com/launch-experience/rentals.png"
         "package" -> "https://mobile-content.uber.com/launch-experience/package.png"
-        "planes" -> "https://mobile-content.uber.com/launch-experience/reserve.png"
+        "planes", "airport" -> "https://mobile-content.uber.com/launch-experience/reserve.png"
+        "tow" -> "https://cdn-icons-png.flaticon.com/512/2830/2830305.png"
         else -> "https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_150,h_150/v1542350172/assets/80/e78345-d85c-4573-a5bc-4389659b829d/original/Uber_X_312x312.png"
     }
 
@@ -194,7 +196,7 @@ fun CategoryCard(title: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun ProfessionalTopBar(savings: Int = 0) {
+fun ProfessionalTopBar(savings: Int = 0, onSavingsClick: () -> Unit = {}) {
     var time by remember { mutableStateOf("") }
     val date = remember {
         SimpleDateFormat("EEE, dd MMM", Locale.getDefault()).format(Date())
@@ -215,7 +217,10 @@ fun ProfessionalTopBar(savings: Int = 0) {
                     Text(date, color = Color.LightGray, fontSize = 12.sp)
                 }
                 Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.clickable { onSavingsClick() }
+                ) {
                     Text("Total Savings", color = Color.LightGray, fontSize = 10.sp)
                     Text("Ksh $savings", color = Color.Green, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                 }
@@ -225,7 +230,7 @@ fun ProfessionalTopBar(savings: Int = 0) {
 }
 
 @Composable
-fun ProfessionalBottomBar(goHome: () -> Unit, goDash: () -> Unit) {
+fun ProfessionalBottomBar(goHome: () -> Unit, goDash: () -> Unit, goSavings: () -> Unit) {
     Surface(color = Color.Black.copy(alpha = 0.8f)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -233,7 +238,7 @@ fun ProfessionalBottomBar(goHome: () -> Unit, goDash: () -> Unit) {
         ) {
             BottomItem("🏠", "Home", goHome)
             BottomItem("🚗", "Dashboard", goDash)
-            BottomItem("💰", "Savings") {}
+            BottomItem("💰", "Savings", goSavings)
         }
     }
 }
@@ -308,9 +313,9 @@ fun PaymentScreen(
             modifier = Modifier.padding(24.dp).fillMaxWidth()
         ) {
             Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Pay Ksh $amount to K-Save", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Confirm Payment", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text("Paying for: $item", color = Color.LightGray)
+                Text("Paying: Ksh $amount for $item", color = Color.LightGray)
                 Spacer(Modifier.height(24.dp))
                 OutlinedTextField(
                     value = phoneNumber,
